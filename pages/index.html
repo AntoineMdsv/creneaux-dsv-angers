@@ -75,7 +75,7 @@ main{padding-block:20px 40px;flex:1 0 auto}
 .search{position:relative}
 .search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:2}
 .search input{padding-left:32px}
-.legend{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--muted);justify-content:flex-end}
+.legend{position:absolute;left:8px;bottom:8px;z-index:400;display:flex;gap:2px 10px;flex-wrap:wrap;font-size:12px;color:var(--fg);background:rgb(255 255 255 / .9);border-radius:var(--r);padding:4px 8px;box-shadow:0 1px 4px rgb(0 0 0 / .2);max-width:calc(100% - 140px)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
 
@@ -143,6 +143,24 @@ td.c-ed{width:1%;text-align:right;padding-left:0}
 .placing{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:500;background:var(--ink);color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 16px rgb(0 0 0 / .25);max-width:calc(100% - 24px)}
 .placing button{background:rgb(255 255 255 / .15);border:1px solid rgb(255 255 255 / .35);color:#fff;border-radius:var(--r);padding:3px 8px;cursor:pointer;font-weight:600}
 .mapwrap{position:relative}
+/* Écran large : la page Villes et carte tient dans la fenêtre, seules la liste et la fiche défilent. */
+@media (min-width:1001px){
+  body.fit{height:100vh;height:100dvh;overflow:hidden}
+  body.fit main{flex:1 1 0;min-height:0;padding-block:12px;display:flex;flex-direction:column}
+  body.fit .credit{display:none}
+  body.fit #v-liste{flex:1;min-height:0;gap:10px}
+  body.fit .head{align-items:center}
+  body.fit .head>div:first-child{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  body.fit .head h1{font-size:24px}
+  body.fit .filters{padding:10px 12px}
+  body.fit .split{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);align-items:stretch}
+  body.fit .listcard,body.fit .mapcard{display:flex;flex-direction:column;min-height:0;position:relative;top:0}
+  body.fit .scroll{flex:1;min-height:0;max-height:none}
+  body.fit .mapwrap{flex:1;min-height:180px}
+  body.fit #map{height:100%;min-height:0}
+  body.fit .fiche{flex:none;max-height:40%;overflow:auto;padding:10px 14px;gap:8px}
+  body.fit .fiche h3{font-size:19px}
+}
 
 /* Fiche ville (sous la carte) */
 .fiche{padding:14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
@@ -248,12 +266,6 @@ td.c-ed{width:1%;text-align:right;padding-left:0}
       <label class="f" for="fh">Livrable à<select id="fh"></select></label>
       <button class="btn" id="reset" type="button">Réinitialiser</button>
     </div>
-    <div class="legend" aria-label="Couleurs de la carte">
-      <span><i class="dot" style="background:var(--p1)"></i>Début avant 10h</span>
-      <span><i class="dot" style="background:var(--p2)"></i>Début 10h à 12h</span>
-      <span><i class="dot" style="background:var(--p3)"></i>Début à partir de 12h</span>
-      <span><i class="dot" style="background:var(--p4)"></i>Tél. conducteur</span>
-    </div>
     <div class="split">
       <div class="card listcard"><div class="scroll" id="scroll">
         <table>
@@ -270,7 +282,12 @@ td.c-ed{width:1%;text-align:right;padding-left:0}
       </div></div>
       <div class="card mapcard" id="mapcard">
         <div class="maphead"><h2>Localisation</h2><button class="btn sm" type="button" id="zfit" title="Voir toutes les villes affichées">Recadrer</button></div>
-        <div class="mapwrap"><div id="map" aria-label="Carte des villes livrées"></div><div class="placing" id="placing" hidden><span id="placing-t"></span><button type="button" id="placing-x">Annuler</button></div></div>
+        <div class="mapwrap"><div id="map" aria-label="Carte des villes livrées"></div><div class="legend" aria-label="Couleurs de la carte">
+      <span><i class="dot" style="background:var(--p1)"></i>Début avant 10h</span>
+      <span><i class="dot" style="background:var(--p2)"></i>Début 10h à 12h</span>
+      <span><i class="dot" style="background:var(--p3)"></i>Début à partir de 12h</span>
+      <span><i class="dot" style="background:var(--p4)"></i>Tél. conducteur</span>
+    </div><div class="placing" id="placing" hidden><span id="placing-t"></span><button type="button" id="placing-x">Annuler</button></div></div>
         <div class="fiche" id="fiche" hidden></div>
       </div>
     </div>
@@ -397,6 +414,8 @@ $("#reset").onclick=resetAll;
 
 /* Carte : plan de l'IGN par défaut, ou OpenStreetMap, ou photos aériennes de l'IGN. */
 const map=L.map("map",{zoomControl:true,attributionControl:true}).setView([47.47,-0.55],9);
+// La carte change de taille avec la fenêtre et la fiche ouverte dessous : Leaflet doit le savoir.
+if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($("#map"));
 const ign=(layer,fmt)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&FORMAT=${fmt}&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
 const FONDS={
   "Plan IGN":L.tileLayer(ign("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2","image/png"),{maxZoom:19,maxNativeZoom:18,attribution:"© IGN"}),
@@ -710,7 +729,7 @@ async function renderHist(){
 }
 
 /* Navigation */
-function go(v){view=v;$$(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.v===v));$$(".view").forEach(s=>s.hidden=s.id!=="v-"+v);
+function go(v){view=v;document.body.classList.toggle("fit",v==="liste");$$(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.v===v));$$(".view").forEach(s=>s.hidden=s.id!=="v-"+v);
   if(v==="liste")setTimeout(()=>map.invalidateSize(),0);if(v==="donnees"){renderDonnees();renderHist()}window.scrollTo(0,0)}
 $$(".tab").forEach(t=>t.onclick=()=>go(t.dataset.v));
 $("#menu").onclick=()=>{location.href=ME.portail+"/"};
