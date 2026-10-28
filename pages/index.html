@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="fr"><head><meta name="robots" content="noindex, nofollow"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>Créneaux DSV Angers</title><link rel="icon" type="image/png" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+/* Mêmes repères que les applis Plannings, Véhicules et le portail, en mode clair uniquement. */
+:root{
+  color-scheme:light;
+  --bg:#f3f5f8;--surface:#ffffff;--surface2:#f7f9fc;--fg:#172234;--muted:#5b677a;--line:#d5dbe5;
+  --ink:#0f2a5c;--navy:#08296c;--accent:#2F80D8;--accent-fg:#ffffff;
+  --ok:#1d7a4a;--ok-bg:#e1f3e9;--warn:#c2410c;--warn-bg:#fdeadd;--bad:#b4232a;--bad-bg:#fbe3e4;--info:#1f56b3;--info-bg:#e3ecfb;--violet:#6a4bd6;--violet-bg:#ece7fb;
+  /* Couleur d'une ville selon l'heure où son créneau commence. */
+  --p1:#08296c;--p2:#2F80D8;--p3:#d9821a;--p4:#6a4bd6;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:6px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 var(--f-body);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:1001;background:var(--ink)}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1440px;margin:0 auto;width:100%;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;color:var(--ink)}
+
+/* En-tête commun aux applis */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:1000;background:var(--ink);color:#fff}
+.top .wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding-block:10px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.02em;display:flex;align-items:center;gap:10px;text-transform:uppercase}
+.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:12px;opacity:.75;letter-spacing:.06em}
+.logo{width:36px;height:36px;border-radius:6px;display:block;flex:none;box-shadow:0 0 0 1px rgb(255 255 255 / .3)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.tab{background:transparent;border:0;color:inherit;opacity:.75;padding:8px 12px;border-radius:var(--r);cursor:pointer;font-weight:600}
+.tab:hover{opacity:1;background:rgb(255 255 255 / .08)}
+.tab[aria-selected="true"]{opacity:1;background:rgb(255 255 255 / .14)}
+.who{display:flex;align-items:center;gap:8px;font-size:13px}
+.who b{width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;font-size:12px}
+/* Boutons Menu et Déconnexion identiques à ceux des autres applis : pastille arrondie, icône et libellé. */
+.menubtn{font:600 13px var(--f-body);color:inherit;background:rgb(255 255 255 / .1);border:1px solid rgb(255 255 255 / .25);border-radius:99px;padding:5px 12px 5px 10px;display:flex;align-items:center;gap:6px;white-space:nowrap;cursor:pointer}
+.menubtn:hover{background:rgb(255 255 255 / .18)}
+.menubtn svg{width:16px;height:16px;flex:none}
+@media (max-width:760px){.menubtn .tl,.who .nm{display:none}.menubtn{padding:7px}.tabs{order:3;margin-left:0;width:100%}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;font:600 14px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:7px 12px;border-radius:var(--r);cursor:pointer;white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:var(--accent)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.danger{background:var(--surface);border-color:var(--bad);color:var(--bad)}
+.btn.danger.full{background:var(--bad);color:#fff}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+main{padding-block:20px 40px;flex:1 0 auto}
+.loading{padding:60px 0;text-align:center;color:var(--muted)}
+.view{display:flex;flex-direction:column;gap:14px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.head h1{font-size:28px}
+.head p{margin:2px 0 0;color:var(--muted);font-size:14px}
+.head .acts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Filtres */
+.filters{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.f{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;min-width:0}
+.f input,.f select,.f textarea{font:500 15px var(--f-body);text-transform:none;letter-spacing:0;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;min-width:0}
+.f.grow{flex:1 1 220px}
+.f.grow input{width:100%}
+.search{position:relative}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;stroke:var(--muted);fill:none;stroke-width:2}
+.search input{padding-left:32px}
+.legend{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:13px;color:var(--muted);justify-content:flex-end}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block;flex:none}
+
+/* Liste + carte */
+.split{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1000px){.split{grid-template-columns:minmax(0,1fr)}.mapcard{order:-1}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0}
+.listcard{overflow:hidden}
+.scroll{max-height:calc(100vh - 250px);min-height:420px;overflow:auto}
+table{border-collapse:collapse;width:100%}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+th{position:sticky;top:0;z-index:1;font-family:var(--f-display);font-weight:600;text-transform:uppercase;letter-spacing:.06em;font-size:12px;color:var(--muted);background:var(--surface2);white-space:nowrap}
+th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+th button:focus-visible{outline:2px solid var(--accent)}
+th .arr{opacity:.35;font-size:10px}
+th[aria-sort] .arr{opacity:1;color:var(--accent)}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--surface2)}
+tbody tr.sel td{background:var(--info-bg)}
+td .vil{font-weight:600}
+td .grp{display:block;font-size:12px;color:var(--muted)}
+td .nopos{display:block;font-size:12px;color:var(--warn)}
+.tn{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:24px;padding:0 7px;border-radius:99px;background:var(--navy);color:#fff;font:600 13px var(--f-mono);white-space:nowrap}
+.tn.alt{background:var(--surface);color:var(--navy);border:1px solid var(--navy)}
+.cr{display:flex;flex-direction:column;gap:3px;min-width:150px}
+.cr .txt{font:500 13px var(--f-mono);white-space:nowrap}
+.tel{font:700 11px var(--f-body);letter-spacing:.04em;text-transform:uppercase;color:var(--violet);background:var(--violet-bg);border-radius:99px;padding:2px 8px;align-self:flex-start;white-space:nowrap}
+/* Réglette 7h-18h : une barre par plage horaire, un trait par heure. */
+.bar{position:relative;height:8px;border-radius:4px;background:repeating-linear-gradient(90deg,var(--line) 0 1px,transparent 1px calc(100%/11)),var(--surface2);border:1px solid var(--line)}
+.bar i{position:absolute;top:-1px;bottom:-1px;border-radius:4px;background:var(--c,var(--accent))}
+.bar .now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--bad);border-radius:1px}
+td.c-ed{width:1%;text-align:right;padding-left:0}
+.ed{padding:5px 7px;color:var(--accent)}
+.ed svg{width:15px;height:15px}
+.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+@media (max-width:640px){
+  thead{display:none}
+  tbody tr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+  tbody td{border:0;padding:0;background:transparent!important}
+  tbody tr.sel{background:var(--info-bg)}
+  td.c-t{grid-row:1/3;align-self:center}
+  td.c-cp{text-align:right}
+  td.c-cr{grid-column:2/3}
+  td.c-ed{grid-column:3;grid-row:2;align-self:end}
+  .scroll{max-height:none;min-height:0}
+}
+
+/* Carte */
+.mapcard{scroll-margin-top:calc(var(--toph,64px) + 10px);position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--toph,64px) + 10px);overflow:hidden}
+@media (max-width:1000px){.mapcard{position:relative;top:0}}
+.maphead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.maphead h2{font-size:16px;text-transform:uppercase;letter-spacing:.06em}
+#map{height:min(560px,calc(100vh - 330px));min-height:360px;background:#e9eef5;z-index:0}
+@media (max-width:1000px){#map{height:420px}}
+.mk{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--c);color:#fff;font:600 10px var(--f-mono);border:2px solid #fff;box-shadow:0 1px 4px rgb(0 0 0 / .35)}
+.mk.off{background:#aab4c3;opacity:.45;box-shadow:none}
+.mk.sel{width:30px;height:30px;font-size:12px;margin:-4px 0 0 -4px;border-color:var(--bad);border-width:3px}
+.mk.move{cursor:move;outline:3px dashed var(--bad);outline-offset:2px}
+.leaflet-container{font-family:var(--f-body)}
+.leaflet-popup-content{margin:10px 12px;min-width:200px}
+.pop{display:flex;flex-direction:column;gap:5px}
+.pop b{font-family:var(--f-display);font-size:16px;color:var(--ink);line-height:1.15}
+.pop .mono{font-size:12.5px}
+.pop .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.placing{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:500;background:var(--ink);color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;display:flex;gap:10px;align-items:center;box-shadow:0 6px 16px rgb(0 0 0 / .25);max-width:calc(100% - 24px)}
+.placing button{background:rgb(255 255 255 / .15);border:1px solid rgb(255 255 255 / .35);color:#fff;border-radius:var(--r);padding:3px 8px;cursor:pointer;font-weight:600}
+.mapwrap{position:relative}
+
+/* Fiche ville (sous la carte) */
+.fiche{padding:14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
+.fiche .ttl{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.fiche h3{font-size:21px}
+.fiche dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 16px;margin:0}
+.fiche dt{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.fiche dd{margin:2px 0 0;font-weight:600}
+.fiche .sig{font-size:12px;color:var(--muted)}
+
+/* Par tournée */
+.tgrid{display:grid;align-items:start;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.tcard{padding:14px;display:flex;flex-direction:column;gap:10px}
+.tcard .th{display:flex;align-items:center;gap:10px}
+.tcard .th .tn{height:32px;min-width:44px;font-size:16px}
+.tcard .th h2{font-size:19px}
+.tcard .th p{margin:0;font-size:13px;color:var(--muted)}
+.tcard .th .btn{margin-left:auto}
+.gantt{display:flex;flex-direction:column;gap:5px}
+.gantt .row{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:8px;align-items:center;font-size:13px}
+.gantt .row span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt .scale{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:8px;font:500 10px var(--f-mono);color:var(--muted)}
+.gantt .scale div{position:relative;height:12px}
+.gantt .scale div span{position:absolute;top:0;transform:translateX(-2px)}
+.more{font-size:13px;color:var(--accent);font-weight:600;background:none;border:0;padding:0;cursor:pointer;align-self:flex-start}
+
+/* Données */
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;align-items:start}
+.dcard{padding:18px;display:flex;flex-direction:column;gap:10px}
+.dcard h2{font-size:20px}
+.dcard p{margin:0;font-size:14px;color:var(--muted);max-width:62ch}
+.drop{display:block;border:2px dashed var(--line);border-radius:10px;padding:22px;text-align:center;color:var(--muted);font-size:14px;background:var(--surface2);cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--accent)}
+.drop b{color:var(--fg)}
+.fix{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:4px 10px;font-size:13px;align-items:center}
+.fix .from{font-family:var(--f-mono);color:var(--bad);text-decoration:line-through;text-decoration-thickness:1px}
+.fix .to{font-family:var(--f-mono);color:var(--ok)}
+.fix .qui{grid-column:1/-1;font-size:12px;color:var(--muted);margin-bottom:4px}
+.lst{display:flex;flex-direction:column;max-height:420px;overflow:auto}
+.lst div{padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.lst div:last-child{border:0}
+.lst small{display:block;color:var(--muted);font-size:12px}
+.prog{height:8px;border-radius:4px;background:var(--surface2);border:1px solid var(--line);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent);width:0}
+.pill{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.info{background:var(--info-bg);color:var(--info)}
+.err{color:var(--bad);font-size:14px;margin:0;min-height:1.2em}
+
+/* Fenêtre */
+.overlay{position:fixed;inset:0;background:rgb(15 42 92 / .45);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));z-index:2000;overflow:auto}
+.dlg{background:var(--surface);border-radius:12px;max-width:560px;width:100%;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgb(0 0 0 / .25)}
+.dlg h3{font-size:23px}
+.dlg p{margin:0}
+.dlg .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dlg .grid .full{grid-column:1/-1}
+@media (max-width:480px){.dlg .grid{grid-template-columns:minmax(0,1fr)}}
+.dlg .f input,.dlg .f select{width:100%}
+.plages{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;margin:0}
+.plages legend{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:0 4px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;align-self:flex-start}
+.seg button{border:0;background:var(--surface);padding:6px 12px;cursor:pointer;font-weight:600;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--navy);color:#fff}
+.pl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px}
+.pl select{font:500 14px var(--f-mono);background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px}
+.pl .lbl{width:58px;color:var(--muted);font-weight:600;font-size:13px}
+.prev{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.dlg .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.dlg .acts .sp{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;z-index:3000;max-width:calc(100% - 32px)}
+.credit{text-align:center;font-size:11px;opacity:.55;padding-block:12px calc(12px + env(safe-area-inset-bottom,0px))}
+</style><style id="nozoom">@media (pointer:coarse),(max-width:900px){input,select,textarea{font-size:16px!important}}</style>
+</head><body>
+<header class="top" id="top"><div class="wrap">
+  <div class="brand"><img class="logo" src="/logo.png" alt=""><div>Créneaux<small>DSV Angers · livraisons 49</small></div></div>
+  <nav class="tabs" aria-label="Sections" role="tablist">
+    <button class="tab" role="tab" data-v="liste" aria-selected="true">Villes et carte</button>
+    <button class="tab" role="tab" data-v="tournees" aria-selected="false">Par tournée</button>
+    <button class="tab" role="tab" data-v="donnees" aria-selected="false" id="t-donnees" hidden>Données</button>
+  </nav>
+  <div class="who"><b id="ini">?</b><span class="nm" id="nm"></span>
+    <button class="menubtn" type="button" id="menu" hidden title="Retour au portail" aria-label="Menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="tl">Menu</span></button>
+    <button class="menubtn" type="button" id="logout" title="Se déconnecter" aria-label="Se déconnecter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg><span class="tl">Déconnexion</span></button>
+  </div>
+</div></header>
+
+<main class="wrap">
+  <div class="loading" id="boot">Chargement…</div>
+
+  <!-- Villes et carte -->
+  <section class="view" id="v-liste" hidden>
+    <div class="head">
+      <div><h1>Créneaux de livraison</h1><p>Agence 49 · plateforme ANE</p></div>
+      <div class="acts"><button class="btn primary" id="add" data-edit hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Ajouter une ville</button></div>
+    </div>
+    <div class="filters" role="search">
+      <label class="f grow" for="q">Ville ou code postal
+        <span class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input id="q" type="search" placeholder="Ex. Chemillé, 49120, Roseraie…" autocomplete="off"></span>
+      </label>
+      <label class="f" for="ft">Tournée<select id="ft"></select></label>
+      <label class="f" for="fg">Regroupement de communes<select id="fg"></select></label>
+      <label class="f" for="fh">Livrable à<select id="fh"></select></label>
+      <button class="btn" id="reset" type="button">Réinitialiser</button>
+    </div>
+    <div class="legend" aria-label="Couleurs de la carte">
+      <span><i class="dot" style="background:var(--p1)"></i>Début avant 10h</span>
+      <span><i class="dot" style="background:var(--p2)"></i>Début 10h à 12h</span>
+      <span><i class="dot" style="background:var(--p3)"></i>Début à partir de 12h</span>
+      <span><i class="dot" style="background:var(--p4)"></i>Tél. conducteur</span>
+    </div>
+    <div class="split">
+      <div class="card listcard"><div class="scroll" id="scroll">
+        <table>
+          <thead><tr>
+            <th data-k="v"><button>Ville <span class="arr">▲</span></button></th>
+            <th data-k="cp"><button>CP <span class="arr">▲</span></button></th>
+            <th data-k="t"><button>Tournée <span class="arr">▲</span></button></th>
+            <th data-k="c"><button>Créneau · 7h à 18h <span class="arr">▲</span></button></th>
+            <th class="c-ed"></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty" hidden></div>
+      </div></div>
+      <div class="card mapcard" id="mapcard">
+        <div class="maphead"><h2>Localisation</h2><button class="btn sm" type="button" id="zfit" title="Voir toutes les villes affichées">Recadrer</button></div>
+        <div class="mapwrap"><div id="map" aria-label="Carte des villes livrées"></div><div class="placing" id="placing" hidden><span id="placing-t"></span><button type="button" id="placing-x">Annuler</button></div></div>
+        <div class="fiche" id="fiche" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Par tournée -->
+  <section class="view" id="v-tournees" hidden>
+    <div class="head"><div><h1>Créneaux par tournée</h1><p>Chaque ligne est une ville, rangée par heure d'ouverture.</p></div></div>
+    <div class="tgrid" id="tgrid"></div>
+  </section>
+
+  <!-- Données -->
+  <section class="view" id="v-donnees" hidden>
+    <div class="head"><div><h1>Données</h1><p>Réservé aux administrateurs.</p></div></div>
+    <div class="dgrid">
+      <div class="card dcard">
+        <h2>Reprendre le fichier Excel</h2>
+        <p>La feuille « CRENEAUX LIV » est lue, chaque ligne devient une ville. <b>La liste actuelle est remplacée</b> : à faire une fois, au démarrage.</p>
+        <label class="drop" id="drop"><input type="file" id="xfile" accept=".xlsx,.xlsm,.xls" hidden><b>Choisir CRENEAUX LIV 49.xlsx</b><br>ou le glisser ici</label>
+        <div id="imp"></div>
+      </div>
+      <div class="card dcard">
+        <h2>Exporter</h2>
+        <p>La liste à jour au format Excel, mêmes colonnes que l'ancien fichier (pour le Power BI pendant la transition, ou pour l'envoyer à un client).</p>
+        <button class="btn" type="button" id="export" style="align-self:flex-start"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exporter en .xlsx</button>
+      </div>
+      <div class="card dcard" id="nopos-card">
+        <h2>Villes sans position</h2>
+        <p>Leur adresse n'a pas été trouvée. Elles restent dans la liste mais pas sur la carte : ouvrez-les et cliquez sur « Placer sur la carte ».</p>
+        <div class="lst" id="nopos"></div>
+      </div>
+      <div class="card dcard">
+        <h2>Historique des modifications</h2>
+        <div class="lst" id="hist"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="credit">Antoine Macé · DSV Angers</footer>
+<div id="dlg"></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const hm=m=>`${pad(Math.floor(m/60))}h${pad(m%60)}`;
+let ME=null,VILLES=[],view="liste",sel=null,sortK="t",sortDir=1;
+
+async function api(p,o={}){
+  const r=await fetch("/api/"+p,{cache:"no-store",...o,headers:{"Content-Type":"application/json",...(o.headers||{})}});
+  if(r.status===401){location.replace(ME&&ME.viaPortail?ME.portail+"/":"/connexion");throw new Error("Connexion requise")}
+  if(r.status===409){const e=new Error("conflit");e.data=await r.json();throw e}
+  if(!r.ok)throw new Error((await r.text()).slice(0,300)||("Erreur "+r.status));
+  return r.headers.get("content-type")?.includes("json")?r.json():r.text();
+}
+let tt;function toast(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";t.setAttribute("role","status");document.body.append(t)}t.textContent=m;clearTimeout(tt);tt=setTimeout(()=>t.remove(),4000)}
+const canEdit=()=>ME&&ME.niveau==="modif";
+
+/* Créneaux : plages en minutes depuis minuit, ou « Tél. conducteur ». */
+const fmtCr=v=>v.tel?"Tél. conducteur":v.plages.map(([a,b])=>`${hm(a)}–${hm(b)}`).join(" / ");
+const legacy=v=>v.tel?"TEL CONDUCTEUR":v.plages.map(([a,b])=>`${pad(a/60|0)}H${pad(a%60)}-${pad(b/60|0)}H${pad(b%60)}`).join(" / ");
+const tTxt=v=>v.tournee2?`${v.tournee} ou ${v.tournee2}`:String(v.tournee);
+const start=v=>v.tel||!v.plages.length?9999:v.plages[0][0];
+const per=v=>v.tel||!v.plages.length?4:v.plages[0][0]<600?1:v.plages[0][0]<720?2:3;
+const col=v=>`var(--p${per(v)})`;
+const H0=7*60,H1=18*60;
+function bar(v,now){
+  if(v.tel)return "";
+  const seg=v.plages.map(([a,b])=>`<i style="left:${(Math.max(a,H0)-H0)/(H1-H0)*100}%;width:${Math.max(0,Math.min(b,H1)-Math.max(a,H0))/(H1-H0)*100}%;--c:${col(v)}"></i>`).join("");
+  const n=now!=null?`<span class="now" style="left:calc(${(now-H0)/(H1-H0)*100}% - 1px)"></span>`:"";
+  return `<div class="bar" aria-hidden="true">${seg}${n}</div>`;
+}
+const crCell=(v,now)=>v.tel?`<span class="tel">Tél. conducteur</span>`:`<span class="txt">${fmtCr(v)}</span>${bar(v,now)}`;
+
+/* Filtres */
+const HOURS=[];for(let m=6*60;m<=20*60;m+=30)HOURS.push(m);
+$("#fh").innerHTML=`<option value="">Toute heure</option>`+HOURS.filter(m=>m>=8*60&&m<=17*60+30).map(m=>`<option value="${m}">${hm(m)}</option>`).join("");
+function fillFilters(){
+  const t=$("#ft").value,g=$("#fg").value;
+  const tours=[...new Set(VILLES.flatMap(v=>[v.tournee,v.tournee2].filter(Boolean)))].sort((a,b)=>a-b);
+  const grps=[...new Set(VILLES.map(v=>v.regroupement).filter(Boolean))].sort();
+  $("#ft").innerHTML=`<option value="">Toutes</option>`+tours.map(n=>`<option value="${n}">Tournée ${n}</option>`).join("");
+  $("#fg").innerHTML=`<option value="">Tous</option>`+grps.map(x=>`<option>${esc(x)}</option>`).join("");
+  $("#ft").value=tours.includes(+t)?t:"";$("#fg").value=grps.includes(g)?g:"";
+}
+const norm=s=>String(s).normalize("NFD").replace(/[̀-ͯ]/g,"").toUpperCase().replace(/\bSAINTES?\b/g,"STE").replace(/\bSAINT\b/g,"ST").replace(/[^A-Z0-9]+/g," ").trim();
+function filtered(){
+  const q=norm($("#q").value),t=$("#ft").value,g=$("#fg").value,h=$("#fh").value;
+  return VILLES.filter(v=>(!q||norm(v.ville+" "+v.regroupement).includes(q)||v.cp.startsWith(q))
+    &&(!t||v.tournee==t||v.tournee2==t)&&(!g||v.regroupement===g)
+    &&(!h||v.tel||v.plages.some(([a,b])=>+h>=a&&+h<b)));
+}
+function sorted(list){
+  const k=sortK,s=sortDir;
+  const key=v=>k==="t"?v.tournee*100000+start(v):k==="c"?start(v):k==="cp"?+v.cp:v.ville;
+  return list.slice().sort((a,b)=>{const x=key(a),y=key(b);return(x<y?-1:x>y?1:a.ville.localeCompare(b.ville))*s});
+}
+
+/* Liste */
+let shown=[];
+function renderList(){
+  shown=sorted(filtered());
+  const now=$("#fh").value?+$("#fh").value:null,ed=canEdit();
+  $("#rows").innerHTML=shown.map(v=>`<tr data-id="${v.id}" class="${sel===v.id?"sel":""}" tabindex="0">
+    <td class="c-v"><span class="vil">${esc(v.ville)}</span>${v.regroupement?`<span class="grp">${esc(v.regroupement)}</span>`:""}${v.lat==null?`<span class="nopos">Pas sur la carte</span>`:""}</td>
+    <td class="c-cp mono">${esc(v.cp)}</td>
+    <td class="c-t"><span class="tn">${v.tournee}</span>${v.tournee2?` <span class="tn alt" title="ou tournée ${v.tournee2}">ou ${v.tournee2}</span>`:""}</td>
+    <td class="c-cr"><div class="cr">${crCell(v,now)}</div></td>
+    <td class="c-ed">${ed?`<button class="btn sm ed" type="button" data-ed="${v.id}" aria-label="Modifier ${esc(v.ville)}" title="Modifier"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button>`:""}</td></tr>`).join("");
+  const e=$("#empty");e.hidden=shown.length>0;
+  e.innerHTML=VILLES.length?`Aucune ville ne correspond. <button class="btn sm" type="button" id="reset2">Réinitialiser la recherche</button>`
+    :`Aucune ville pour l'instant. ${ME.admin?`Reprenez le fichier Excel dans l'onglet <b>Données</b>.`:"Un administrateur doit d'abord reprendre le fichier Excel."}`;
+  const r2=$("#reset2");if(r2)r2.onclick=resetAll;
+  $$("th[data-k]").forEach(th=>{const on=th.dataset.k===sortK;if(on)th.setAttribute("aria-sort",sortDir>0?"ascending":"descending");else th.removeAttribute("aria-sort");th.querySelector(".arr").textContent=on&&sortDir<0?"▼":"▲"});
+  $$("#rows .ed").forEach(b=>b.onclick=e=>{e.stopPropagation();const v=VILLES.find(x=>x.id==b.dataset.ed);select(v.id,"list");editDlg(v)});
+  $$("#rows tr").forEach(tr=>{tr.onclick=()=>select(+tr.dataset.id,"list");tr.onkeydown=e=>{if(e.key==="Enter")select(+tr.dataset.id,"list")}});
+  renderMarkers();
+}
+$$("th[data-k] button").forEach(b=>b.onclick=()=>{const k=b.parentElement.dataset.k;if(sortK===k)sortDir=-sortDir;else{sortK=k;sortDir=1}renderList()});
+["#q","#ft","#fg","#fh"].forEach(s=>$(s).addEventListener("input",()=>{renderList();fit()}));
+function resetAll(){$("#q").value="";$("#ft").value="";$("#fg").value="";$("#fh").value="";unselect();renderList();fit(true)}
+$("#reset").onclick=resetAll;
+
+/* Carte : fond OpenStreetMap, ou plan et photos aériennes de l'IGN. */
+const map=L.map("map",{zoomControl:true,attributionControl:true}).setView([47.47,-0.55],9);
+const ign=(layer,fmt)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&FORMAT=${fmt}&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+const FONDS={
+  "Plan":L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}),
+  "Plan IGN":L.tileLayer(ign("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2","image/png"),{maxZoom:19,attribution:"© IGN"}),
+  "Satellite":L.tileLayer(ign("ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg"),{maxZoom:19,attribution:"© IGN"})
+};
+let fond="Plan";try{fond=localStorage.getItem("creneaux-fond")||"Plan"}catch(_){}
+(FONDS[fond]||FONDS.Plan).addTo(map);
+L.control.layers(FONDS,null,{position:"topright"}).addTo(map);
+map.on("baselayerchange",e=>{try{localStorage.setItem("creneaux-fond",e.name)}catch(_){}});
+const layer=L.layerGroup().addTo(map);
+const markers=new Map();
+function icon(v,on,s){return L.divIcon({className:"",iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-12],
+  html:`<span class="mk ${on?"":"off"} ${s?"sel":""} ${moving===v.id?"move":""}" style="--c:${col(v)}">${v.tournee}</span>`})}
+let moving=null;
+function renderMarkers(){
+  const ids=new Set(shown.map(v=>v.id));
+  for(const[id,mk]of markers)if(!VILLES.some(v=>v.id===id&&v.lat!=null)){layer.removeLayer(mk);markers.delete(id)}
+  for(const v of VILLES){
+    if(v.lat==null)continue;
+    const on=ids.has(v.id),s=v.id===sel;
+    let mk=markers.get(v.id);
+    if(!mk){mk=L.marker([v.lat,v.lng],{keyboard:false});mk.on("click",()=>select(mk.vid,"map"));
+      mk.on("dragend",()=>savePos(VILLES.find(x=>x.id===mk.vid),mk.getLatLng()));markers.set(v.id,mk);mk.addTo(layer)}
+    mk.vid=v.id;mk.setLatLng([v.lat,v.lng]);mk.setIcon(icon(v,on,s));mk.setZIndexOffset(s?1000:on?100:0);
+    mk.bindTooltip(`<b>${esc(v.ville)}</b><br><span class="mono">${esc(v.cp)} · T${esc(tTxt(v))} · ${esc(fmtCr(v))}</span>`,{direction:"top",offset:[0,-10]});
+  }
+}
+function fit(all){
+  const l=(all?VILLES:shown).filter(v=>v.lat!=null);
+  if(!l.length)return;
+  if(l.length===1)return map.setView([l[0].lat,l[0].lng],13);
+  map.fitBounds(L.latLngBounds(l.map(v=>[v.lat,v.lng])),{padding:[30,30],maxZoom:13});
+}
+$("#zfit").onclick=()=>fit();
+
+/* Sélection : zoom sur la ville, bulle avec ses infos, fiche sous la carte. */
+function popHtml(v){return `<div class="pop"><b>${esc(v.ville)}</b><span class="mono">${esc(v.cp)} · Tournée ${esc(tTxt(v))}</span><span class="mono">${esc(fmtCr(v))}</span>
+  ${v.remarque?`<span>${esc(v.remarque)}</span>`:""}
+  ${canEdit()?`<div class="acts"><button class="btn sm primary" type="button" data-pe>Modifier les infos</button><button class="btn sm" type="button" data-pm>Déplacer le point</button></div>`:""}</div>`}
+function select(id,from){
+  sel=id;const v=VILLES.find(x=>x.id===id);if(!v)return unselect();
+  $$("#rows tr").forEach(tr=>tr.classList.toggle("sel",+tr.dataset.id===id));
+  if(from==="map"){const tr=$(`#rows tr[data-id="${id}"]`);if(tr)tr.scrollIntoView({block:"nearest",behavior:"smooth"})}
+  renderMarkers();
+  const mk=markers.get(id);
+  if(mk&&from){map.flyTo(mk.getLatLng(),Math.max(map.getZoom(),13),{duration:.6});
+    mk.unbindPopup();mk.bindPopup(popHtml(v),{autoPan:true}).openPopup()}
+  if(from==="list"&&matchMedia("(max-width:1000px)").matches)$("#mapcard").scrollIntoView({block:"start",behavior:"smooth"});
+  renderFiche(v);
+}
+function unselect(){sel=null;$("#fiche").hidden=true;map.closePopup();$$("#rows tr.sel").forEach(tr=>tr.classList.remove("sel"));renderMarkers()}
+map.on("popupopen",e=>{const el=e.popup.getElement(),v=VILLES.find(x=>x.id===sel);if(!el||!v)return;
+  const a=el.querySelector("[data-pe]");if(a)a.onclick=()=>editDlg(v);
+  const b=el.querySelector("[data-pm]");if(b)b.onclick=()=>startMove(v)});
+function renderFiche(v){
+  const f=$("#fiche");f.hidden=false;
+  f.innerHTML=`<div class="ttl"><div><h3>${esc(v.ville)}</h3><span class="muted">${v.regroupement?esc(v.regroupement)+" · ":""}<span class="mono">${esc(v.cp)}</span> · plateforme ${esc(v.plateforme)}</span></div>
+    ${canEdit()?`<div style="display:flex;gap:6px;flex-wrap:wrap">${v.lat==null?`<button class="btn" type="button" id="fplace">Placer sur la carte</button>`:""}<button class="btn" type="button" id="fedit"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Modifier</button></div>`:""}</div>
+    <dl><div><dt>Tournée</dt><dd><span class="tn">${v.tournee}</span>${v.tournee2?` <span class="tn alt">ou ${v.tournee2}</span>`:""}</dd></div>
+    <div><dt>Créneau</dt><dd class="mono">${esc(fmtCr(v))}</dd></div>
+    ${v.remarque?`<div><dt>Remarque</dt><dd>${esc(v.remarque)}</dd></div>`:""}</dl>
+    ${bar(v)}
+    <span class="sig">Modifié par ${esc(v.maj_par||"?")} le ${new Date(v.maj).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}</span>`;
+  const e=$("#fedit");if(e)e.onclick=()=>editDlg(v);
+  const p=$("#fplace");if(p)p.onclick=()=>startPlace(v);
+}
+
+/* Position : déplacer un point existant, ou placer une ville qui n'en a pas en cliquant sur la carte. */
+let placing=null;
+function bandeau(t){$("#placing-t").textContent=t;$("#placing").hidden=false}
+function stopPlacing(){placing=null;$("#placing").hidden=true;map.getContainer().style.cursor="";
+  if(moving!=null){const mk=markers.get(moving);moving=null;if(mk)mk.dragging.disable();renderMarkers()}}
+$("#placing-x").onclick=stopPlacing;
+function startMove(v){const mk=markers.get(v.id);if(!mk)return startPlace(v);map.closePopup();moving=v.id;renderMarkers();mk.dragging.enable();bandeau(`Glissez le point de ${v.ville} au bon endroit.`)}
+function startPlace(v){placing=v;map.getContainer().style.cursor="crosshair";bandeau(`Cliquez sur la carte à l'endroit de ${v.ville}.`);$("#mapcard").scrollIntoView({block:"start",behavior:"smooth"})}
+map.on("click",e=>{if(placing)savePos(placing,e.latlng)});
+async function savePos(v,ll){
+  stopPlacing();
+  try{const n=await api("villes/"+v.id,{method:"PUT",body:JSON.stringify({...v,lat:+ll.lat.toFixed(5),lng:+ll.lng.toFixed(5)})});majVille(n);select(n.id);toast("Position enregistrée.")}
+  catch(e){gererErreur(e,v)}
+}
+function majVille(n){const i=VILLES.findIndex(x=>x.id===n.id);if(i>=0)VILLES[i]=n;else VILLES.push(n);fillFilters();renderList();renderTournees();renderDonnees()}
+function gererErreur(e,v){
+  if(e.message==="conflit"){const c=e.data&&e.data.ville;if(c){majVille(c);if(sel===c.id)select(c.id)}
+    toast(`${v.ville} vient d'être modifiée par ${c?c.maj_par:"quelqu'un d'autre"}. Voici sa version à jour : refaites votre changement si besoin.`);return}
+  toast(e.message);
+}
+
+/* Recherche de la position d'une ville (service d'adresses de l'IGN, puis l'ancien service de l'État en secours). */
+function requete(v){
+  const parts=v.ville.split("/").map(s=>s.trim()).filter(Boolean);
+  let nom=parts[0];const m=nom.match(/^(.*) (LA|LE|LES|L)$/);if(m)nom=`${m[2]} ${m[1]}`;
+  return parts.length>1?{q:parts.slice(1).join(" ")+" "+nom,type:""}:{q:nom,type:"municipality"};
+}
+async function geocode(v){
+  const r=requete(v);
+  const qs=(pc)=>`?q=${encodeURIComponent(r.q)}&limit=1${pc?`&postcode=${v.cp}`:""}${r.type?`&type=${r.type}`:""}`;
+  for(const base of ["https://data.geopf.fr/geocodage/search","https://api-adresse.data.gouv.fr/search/"])
+    for(const pc of [true,false]){
+      try{const res=await fetch(base+qs(pc),{signal:AbortSignal.timeout(8000)});if(!res.ok)continue;
+        const f=(await res.json()).features?.[0];if(!f)continue;
+        // Sans le code postal, on n'accepte qu'une réponse dans le même département.
+        if(!pc&&String(f.properties.postcode||"").slice(0,2)!==v.cp.slice(0,2))continue;
+        const[lng,lat]=f.geometry.coordinates;return{lat:+lat.toFixed(5),lng:+lng.toFixed(5)}}
+      catch(_){}
+    }
+  return null;
+}
+
+/* Fenêtre de modification */
+const tOpts=(v,blank)=>(blank?`<option value="">Aucune</option>`:"")+Array.from({length:99},(_,i)=>i+1).map(n=>`<option ${n==v?"selected":""}>${n}</option>`).join("");
+const hOpts=v=>HOURS.map(m=>`<option value="${m}" ${m==v?"selected":""}>${hm(m)}</option>`).join("");
+function editDlg(v){
+  if(!canEdit())return;
+  const isNew=!v;
+  v=v||{ville:"",regroupement:"",cp:"",plateforme:"ANE",tournee:"",tournee2:null,tel:false,plages:[[540,660]],remarque:""};
+  let tel=v.tel,two=v.plages.length>1;
+  const p=v.plages.length?v.plages:[[540,660]];
+  const grps=[...new Set(VILLES.map(x=>x.regroupement).filter(Boolean))].sort();
+  $("#dlg").innerHTML=`<div class="overlay" id="ov"><form class="dlg" id="fe" role="dialog" aria-modal="true" aria-labelledby="dt">
+    <h3 id="dt">${isNew?"Ajouter une ville":"Modifier "+esc(v.ville)}</h3>
+    <div class="grid">
+      <label class="f full" for="e-v">Ville (ou quartier : ANGERS / ROSERAIE)<input id="e-v" value="${esc(v.ville)}" required maxlength="80"></label>
+      <label class="f" for="e-cp">Code postal<input id="e-cp" class="mono" value="${esc(v.cp)}" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required></label>
+      <label class="f" for="e-g">Regroupement de communes<input id="e-g" value="${esc(v.regroupement)}" list="dl-g" placeholder="Aucun" maxlength="80"></label>
+      <datalist id="dl-g">${grps.map(g=>`<option>${esc(g)}</option>`).join("")}</datalist>
+      <label class="f" for="e-t">Tournée<select id="e-t" required>${isNew?`<option value="">Choisir</option>`:""}${tOpts(v.tournee)}</select></label>
+      <label class="f" for="e-a">Ou tournée (secours)<select id="e-a">${tOpts(v.tournee2,true)}</select></label>
+    </div>
+    <fieldset class="plages"><legend>Créneau de livraison</legend>
+      <div class="seg" role="group" aria-label="Type de créneau"><button type="button" id="s-h" aria-pressed="${!tel}">Plages horaires</button><button type="button" id="s-t" aria-pressed="${tel}">Tél. conducteur</button></div>
+      <div id="hrs" ${tel?"hidden":""}>
+        <div class="pl"><span class="lbl">Plage 1</span>de <select id="a1" aria-label="Début plage 1">${hOpts(p[0][0])}</select> à <select id="b1" aria-label="Fin plage 1">${hOpts(p[0][1])}</select></div>
+        <div class="pl" id="pl2" ${two?"":"hidden"} style="margin-top:8px"><span class="lbl">Plage 2</span>de <select id="a2" aria-label="Début plage 2">${hOpts(p[1]?.[0]??810)}</select> à <select id="b2" aria-label="Fin plage 2">${hOpts(p[1]?.[1]??930)}</select> <button type="button" class="more" id="rm2">Retirer</button></div>
+        <button type="button" class="more" id="add2" ${two?"hidden":""} style="margin-top:8px">+ Ajouter une 2e plage</button>
+      </div>
+      <p class="muted" id="telx" ${tel?"":"hidden"} style="margin:0;font-size:14px">Pas d'horaire fixe : le conducteur appelle le client avant de passer.</p>
+      <div class="prev" id="prev"></div>
+    </fieldset>
+    <label class="f" for="e-n">Remarque (facultatif)<input id="e-n" value="${esc(v.remarque)}" maxlength="200" placeholder="Ex. quai fermé le mercredi après-midi"></label>
+    <p class="err" id="ee" role="alert"></p>
+    <div class="acts">${isNew?"":`<button class="btn danger" type="button" id="del">Supprimer la ville</button>`}<span class="sp"></span>
+      <button class="btn" type="button" id="cancel">Annuler</button><button class="btn primary" type="submit" id="save">Enregistrer</button></div>
+    <span class="muted" style="font-size:12px">${isNew?"La position sur la carte est cherchée à partir de la ville et du code postal.":`Dernière modification par ${esc(v.maj_par||"?")}. La vôtre sera signée à votre nom.`}</span>
+  </form></div>`;
+  const cur=()=>({tel,plages:tel?[]:[[+$("#a1").value,+$("#b1").value],...(two?[[+$("#a2").value,+$("#b2").value]]:[])]});
+  const upd=()=>{const c=cur();$("#prev").innerHTML=tel?"":`<span>Aperçu : <b class="mono">${fmtCr(c)}</b></span>${bar(c)}`};
+  const setTel=x=>{tel=x;$("#s-h").setAttribute("aria-pressed",!x);$("#s-t").setAttribute("aria-pressed",x);$("#hrs").hidden=x;$("#telx").hidden=!x;upd()};
+  $("#s-h").onclick=()=>setTel(false);$("#s-t").onclick=()=>setTel(true);
+  $("#add2").onclick=()=>{two=true;$("#pl2").hidden=false;$("#add2").hidden=true;upd()};
+  $("#rm2").onclick=()=>{two=false;$("#pl2").hidden=true;$("#add2").hidden=false;upd()};
+  $$("#hrs select").forEach(s=>s.onchange=upd);upd();
+  $("#cancel").onclick=closeDlg;$("#ov").onclick=e=>{if(e.target.id==="ov")closeDlg()};
+  if(!isNew)$("#del").onclick=()=>confirmDel(v);
+  $("#fe").onsubmit=async e=>{e.preventDefault();
+    const c=cur();
+    if(!tel&&c.plages.some(([a,b])=>b<=a)){$("#ee").textContent="L'heure de fin doit être après l'heure de début.";return}
+    if(!tel&&c.plages.length===2&&c.plages[1][0]<c.plages[0][1]){$("#ee").textContent="La 2e plage doit commencer après la fin de la 1re.";return}
+    if(!$("#e-t").value){$("#ee").textContent="Choisissez une tournée.";return}
+    const n={...v,ville:$("#e-v").value.trim().toUpperCase(),cp:$("#e-cp").value.trim(),regroupement:$("#e-g").value.trim().toUpperCase(),
+      tournee:+$("#e-t").value,tournee2:$("#e-a").value?+$("#e-a").value:null,tel:c.tel,plages:c.plages,remarque:$("#e-n").value.trim()};
+    const btn=$("#save");btn.disabled=true;btn.textContent="Enregistrement…";
+    // Ville ou code postal changés (ou pas encore de position) : on cherche la nouvelle position.
+    if(isNew||n.lat==null||n.ville!==v.ville||n.cp!==v.cp){const g=await geocode(n);if(g){n.lat=g.lat;n.lng=g.lng}else if(isNew||n.cp!==v.cp||n.ville!==v.ville){n.lat=null;n.lng=null}}
+    try{const r=await api(isNew?"villes":"villes/"+v.id,{method:isNew?"POST":"PUT",body:JSON.stringify(n)});
+      closeDlg();majVille(r);select(r.id,"list");toast(isNew?(r.lat==null?"Ville ajoutée, mais sa position n'a pas été trouvée : placez-la sur la carte.":"Ville ajoutée."):"Modification enregistrée.")}
+    catch(x){if(x.message==="conflit"){closeDlg();gererErreur(x,v)}else{$("#ee").textContent=x.message;btn.disabled=false;btn.textContent="Enregistrer"}}};
+  $("#e-v").focus();
+}
+function confirmDel(v){
+  $("#dlg").innerHTML=`<div class="overlay"><div class="dlg" role="alertdialog" aria-modal="true"><h3>Supprimer ${esc(v.ville)} ?</h3><p>La ville disparaît de la liste et de la carte. La suppression reste visible dans l'historique, avec son ancien créneau.</p>
+  <p class="err" id="de" role="alert"></p><div class="acts"><span class="sp"></span><button class="btn" id="no">Annuler</button><button class="btn danger full" id="yes">Supprimer</button></div></div></div>`;
+  $("#no").onclick=()=>editDlg(v);
+  $("#yes").onclick=async()=>{try{await api("villes/"+v.id,{method:"DELETE"});VILLES=VILLES.filter(x=>x.id!==v.id);closeDlg();unselect();fillFilters();renderList();renderTournees();renderDonnees();toast("Ville supprimée.")}
+    catch(x){$("#de").textContent=x.message}};
+}
+function closeDlg(){$("#dlg").innerHTML=""}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(placing||moving!=null)stopPlacing();else closeDlg()}});
+$("#add").onclick=()=>editDlg(null);
+
+/* Par tournée */
+const openT=new Set();
+function renderTournees(){
+  const by=new Map();for(const v of VILLES)for(const t of [v.tournee,v.tournee2]){if(!t)continue;if(!by.has(t))by.set(t,[]);by.get(t).push(v)}
+  const ts=[...by.keys()].sort((a,b)=>a-b);
+  $("#tgrid").innerHTML=ts.length?ts.map(t=>{const l=by.get(t).sort((a,b)=>start(a)-start(b)||a.ville.localeCompare(b.ville));
+    const h=l.filter(v=>!v.tel&&v.plages.length),st=h.map(v=>v.plages[0][0]),en=h.map(v=>Math.max(...v.plages.map(p=>p[1])));
+    const lim=openT.has(t)?l.length:8;
+    return `<div class="card tcard"><div class="th"><span class="tn">${t}</span><div><h2>Tournée ${t}</h2><p>${l.length} ville${l.length>1?"s":""}${st.length?` · de ${hm(Math.min(...st))} à ${hm(Math.max(...en))}`:""}</p></div>
+      <button class="btn sm" type="button" data-show="${t}" title="Voir la tournée sur la carte">Carte</button></div>
+      <div class="gantt"><div class="scale"><span></span><div>${[7,10,13,16].map(x=>`<span style="left:${(x-7)/11*100}%">${x}h</span>`).join("")}</div></div>
+      ${l.slice(0,lim).map(v=>`<div class="row"><span title="${esc(v.ville)}">${esc(v.ville)}${v.tournee!==t?` <small class="muted">(secours)</small>`:""}</span>${v.tel?`<span class="cr"><span class="tel">Tél. conducteur</span></span>`:bar(v)}</div>`).join("")}</div>
+      ${l.length>8?`<button class="more" type="button" data-more="${t}">${openT.has(t)?"Réduire":`Voir les ${l.length-8} autres`}</button>`:""}</div>`}).join("")
+    :`<p class="muted">Aucune ville pour l'instant.</p>`;
+  $$("[data-more]").forEach(b=>b.onclick=()=>{const t=+b.dataset.more;openT.has(t)?openT.delete(t):openT.add(t);renderTournees()});
+  $$("[data-show]").forEach(b=>b.onclick=()=>{$("#q").value="";$("#fg").value="";$("#fh").value="";$("#ft").value=b.dataset.show;unselect();go("liste");renderList();setTimeout(()=>{map.invalidateSize();fit()},50)});
+}
+
+/* Données : reprise de l'Excel, export, villes sans position, historique. */
+let XLSX_P=null;
+const loadXlsx=()=>XLSX_P||(XLSX_P=new Promise((ok,ko)=>{const s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";s.onload=()=>ok(window.XLSX);s.onerror=()=>{XLSX_P=null;ko(new Error("Lecteur Excel injoignable : vérifiez la connexion internet."))};document.head.appendChild(s)}));
+// Lecture d'un créneau du fichier, en tolérant les fautes de frappe (11H000, 1200, 11H, minuscules).
+function parseCr(raw){
+  const s=String(raw??"").trim().toUpperCase();
+  if(/TEL/.test(s))return{tel:true,plages:[]};
+  const plages=[];
+  for(const part of s.split("/")){
+    const m=part.match(/(\d{1,2})\s*H?\s*(\d{0,3})\s*-\s*(\d{1,2})\s*H?\s*(\d{0,3})/);
+    if(!m)continue;
+    const mm=x=>x?parseInt(x.slice(0,2).padEnd(2,"0"),10):0;
+    plages.push([+m[1]*60+mm(m[2]),+m[3]*60+mm(m[4])]);
+  }
+  return{tel:false,plages};
+}
+let IMPORT=null;
+async function lireFichier(file){
+  const out=$("#imp");out.innerHTML=`<p>Lecture de ${esc(file.name)}…</p>`;
+  let rows,fixes=[];
+  try{
+    const X=await loadXlsx(),wb=X.read(await file.arrayBuffer(),{type:"array"});
+    const nomF=wb.SheetNames.find(n=>{const r=X.utils.sheet_to_json(wb.Sheets[n],{header:1,range:0})[0]||[];return r.some(c=>/^VILLES?$/i.test(String(c).trim()))});
+    if(!nomF)throw new Error("aucune feuille avec une colonne VILLES");
+    const data=X.utils.sheet_to_json(wb.Sheets[nomF],{header:1,defval:""});
+    const hd=data[0].map(c=>norm(c)),ix=re=>hd.findIndex(h=>re.test(h));
+    const c={v:ix(/^VILLES?$/),g:ix(/^REGROUPEMENT/),cp:ix(/^CODES? POSTA/),pf:ix(/^PLATEFORME/),t:ix(/^TOURNEE/),cr:ix(/^CRENEAU/)};
+    if([c.v,c.cp,c.t,c.cr].some(i=>i<0))throw new Error("colonnes VILLES, CODES POSTAUX, TOURNEES DE LIVRAISONS ou CRENEAUX HORAIRES introuvables");
+    rows=[];
+    for(const r of data.slice(1)){
+      if(!String(r[c.v]).trim())continue;
+      const cr=parseCr(r[c.cr]),ts=String(r[c.t]).match(/\d+/g)||[];
+      const v={ville:String(r[c.v]).trim().toUpperCase(),regroupement:c.g>=0?String(r[c.g]).trim().toUpperCase().replace(/-/g," "):"",cp:String(r[c.cp]).trim().padStart(5,"0"),
+        plateforme:c.pf>=0&&String(r[c.pf]).trim()?String(r[c.pf]).trim().toUpperCase():"ANE",tournee:+ts[0]||0,tournee2:ts[1]?+ts[1]:null,tel:cr.tel,plages:cr.plages,remarque:"",lat:null,lng:null};
+      const brut=String(r[c.cr]).trim().toUpperCase(),propre=legacy(v);
+      if((cr.tel||cr.plages.length)&&brut!==propre)fixes.push({v:v.ville,from:String(r[c.cr]),to:propre});
+      rows.push(v);
+    }
+  }catch(e){out.innerHTML=`<p class="err">Fichier illisible : ${esc(e.message)}.</p>`;return}
+  IMPORT={file:file.name,rows};
+  const sansCr=rows.filter(v=>!v.tel&&!v.plages.length).length,sansT=rows.filter(v=>!v.tournee).length;
+  out.innerHTML=`<p><span class="pill ok">${rows.length} villes lues</span> ${new Set(rows.flatMap(v=>[v.tournee,v.tournee2].filter(Boolean))).size} tournées.</p>
+    ${sansCr||sansT?`<p class="err" style="min-height:0">${sansCr?`${sansCr} ville(s) sans créneau lisible`:""}${sansCr&&sansT?", ":""}${sansT?`${sansT} sans tournée`:""} : elles seront écartées.</p>`:""}
+    ${fixes.length?`<p>Créneaux mal écrits, corrigés :</p><div class="fix">${fixes.map(f=>`<span class="from">${esc(f.from)}</span><span>→</span><span class="to">${esc(f.to)}</span><span class="qui">${esc(f.v)}</span>`).join("")}</div>`:""}
+    <p>Les positions sur la carte seront cherchées ville par ville (une minute environ).</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" type="button" id="go-imp">${VILLES.length?`Remplacer les ${VILLES.length} villes actuelles`:"Reprendre ces villes"}</button><button class="btn" type="button" id="no-imp">Annuler</button></div>`;
+  $("#no-imp").onclick=()=>{IMPORT=null;out.innerHTML=""};
+  $("#go-imp").onclick=lancerImport;
+}
+async function lancerImport(){
+  const out=$("#imp"),rows=IMPORT.rows;
+  out.innerHTML=`<p id="imp-t">Recherche des positions : 0 / ${rows.length}</p><div class="prog"><i id="imp-b"></i></div>`;
+  let n=0,i=0;
+  const worker=async()=>{while(i<rows.length){const v=rows[i++];const g=await geocode(v);if(g){v.lat=g.lat;v.lng=g.lng}
+    n++;$("#imp-t").textContent=`Recherche des positions : ${n} / ${rows.length}`;$("#imp-b").style.width=(n/rows.length*100)+"%"}};
+  await Promise.all(Array.from({length:5},worker));
+  $("#imp-t").textContent="Enregistrement…";
+  try{const r=await api("import",{method:"POST",body:JSON.stringify({fichier:IMPORT.file,villes:rows})});
+    const sans=rows.filter(v=>v.lat==null).length;
+    out.innerHTML=`<p><span class="pill ok">Reprise terminée</span> ${r.n} villes enregistrées${sans?`, dont ${sans} sans position (voir ci-contre)`:""}.</p>${r.refus.length?`<p class="err" style="min-height:0">Lignes écartées :</p><div class="lst">${r.refus.map(x=>`<div>${esc(x)}</div>`).join("")}</div>`:""}`;
+    IMPORT=null;await charger();
+  }catch(e){out.innerHTML=`<p class="err">${esc(e.message)}</p>`}
+}
+$("#xfile").onchange=e=>{const f=e.target.files[0];if(f)lireFichier(f);e.target.value=""};
+const drop=$("#drop");
+drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("over")});
+drop.addEventListener("dragleave",()=>drop.classList.remove("over"));
+drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("over");const f=e.dataTransfer.files[0];if(f)lireFichier(f)});
+$("#export").onclick=async()=>{
+  try{const X=await loadXlsx();
+    const lignes=VILLES.slice().sort((a,b)=>a.tournee-b.tournee||a.ville.localeCompare(b.ville)).map(v=>({"VILLES":v.ville,"REGROUPEMENTS DE COMMUNES":v.regroupement,"CODES POSTAUX":+v.cp,"PLATEFORME 1":v.plateforme,
+      "TOURNEES DE LIVRAISONS":v.tournee2?`${v.tournee} OU ${v.tournee2}`:v.tournee,"CRENEAUX HORAIRES":legacy(v),"CODE GPS":`${v.ville} ${v.cp}`,"REMARQUE":v.remarque}));
+    const wb=X.utils.book_new();X.utils.book_append_sheet(wb,X.utils.json_to_sheet(lignes),"CRENEAUX LIV");
+    X.writeFile(wb,"CRENEAUX LIV 49.xlsx")}
+  catch(e){toast(e.message)}
+};
+async function renderDonnees(){
+  if(!ME||!ME.admin)return;
+  const np=VILLES.filter(v=>v.lat==null);
+  $("#nopos-card").hidden=!np.length;
+  $("#nopos").innerHTML=np.map(v=>`<div><button class="more" type="button" data-np="${v.id}">${esc(v.ville)}</button><small>${esc(v.cp)} · tournée ${esc(tTxt(v))}</small></div>`).join("");
+  $$("[data-np]").forEach(b=>b.onclick=()=>{go("liste");const v=VILLES.find(x=>x.id==b.dataset.np);select(v.id,"list");startPlace(v)});
+}
+async function renderHist(){
+  try{const h=await api("historique");$("#hist").innerHTML=h.length?h.map(x=>`<div>${esc(x.texte)}<small>${esc(x.qui)} · ${new Date(x.t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}</small></div>`).join(""):`<div class="muted">Rien pour l'instant.</div>`}
+  catch(e){$("#hist").innerHTML=`<div class="err">${esc(e.message)}</div>`}
+}
+
+/* Navigation */
+function go(v){view=v;$$(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.v===v));$$(".view").forEach(s=>s.hidden=s.id!=="v-"+v);
+  if(v==="liste")setTimeout(()=>map.invalidateSize(),0);if(v==="donnees"){renderDonnees();renderHist()}window.scrollTo(0,0)}
+$$(".tab").forEach(t=>t.onclick=()=>go(t.dataset.v));
+$("#menu").onclick=()=>{location.href=ME.portail+"/"};
+$("#logout").onclick=async()=>{await fetch("/api/logout");location.replace(ME&&ME.viaPortail?ME.portail+"/api/logout":"/connexion")};
+const setTop=()=>document.documentElement.style.setProperty("--toph",$("#top").offsetHeight+"px");
+addEventListener("resize",setTop);
+
+async function charger(){
+  VILLES=await api("villes");
+  fillFilters();renderList();renderTournees();renderDonnees();
+  if(sel&&!VILLES.some(v=>v.id===sel))unselect();else if(sel)renderFiche(VILLES.find(v=>v.id===sel));
+}
+(async()=>{
+  try{ME=await api("moi")}catch(e){$("#boot").textContent=e.message;return}
+  const ini=String(ME.nom||"?").split(/\s+/).filter(Boolean).map(w=>w[0]).join("").slice(0,2).toUpperCase();
+  $("#ini").textContent=ini;$("#nm").textContent=ME.nom;$("#menu").hidden=!ME.portail;$("#t-donnees").hidden=!ME.admin;
+  $$("[data-edit]").forEach(b=>b.hidden=!canEdit());
+  if(ME.portail){try{const l=document.createElement("link");l.rel="preconnect";l.href=ME.portail;document.head.appendChild(l);fetch(ME.portail+"/api/health",{mode:"no-cors",cache:"no-store"}).catch(()=>{})}catch(_){}}
+  $("#boot").hidden=true;go("liste");setTop();
+  try{await charger();fit(true)}catch(e){toast(e.message)}
+  // Les changements des autres arrivent toutes les minutes (pas pendant une modification).
+  setInterval(()=>{if(!document.hidden&&!$("#dlg").innerHTML&&!placing&&moving==null)charger().catch(()=>{})},60000);
+})();
+</script></body></html>
