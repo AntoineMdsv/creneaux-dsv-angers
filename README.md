@@ -32,7 +32,7 @@ On entre par le **portail DSV Angers** (tuile Créneaux). Les droits se donnent 
 
 ## Positions sur la carte
 
-À la reprise de l'Excel et quand on change une ville ou son code postal, la position est cherchée par la page auprès du service d'adresses de l'IGN (`data.geopf.fr/geocodage`, gratuit, sans clé), avec l'ancien service `api-adresse.data.gouv.fr` en secours. Une ville introuvable reste dans la liste ; on la place à la main avec « Placer sur la carte ». Un point mal placé se corrige avec « Déplacer le point ».
+À la reprise de l'Excel et quand on change une ville ou son code postal, la position est cherchée par la page auprès du service d'adresses de l'IGN (`data.geopf.fr/geocodage`, gratuit, sans clé), avec l'ancien service `api-adresse.data.gouv.fr` en secours. Une ancienne commune fusionnée (commune déléguée, par exemple Chalonnes-sous-le-Lude dans Noyant-Villages) n'est plus une commune pour ces services : elle est cherchée parmi les lieux-dits et les adresses qui portent encore son nom. Le bouton « Chercher à nouveau leur position » de l'onglet Données relance la recherche pour toutes les villes sans position. Une ville introuvable reste dans la liste ; on la place à la main avec « Placer sur la carte ». Un point mal placé se corrige avec « Déplacer le point ».
 
 ## Essayer en local
 
