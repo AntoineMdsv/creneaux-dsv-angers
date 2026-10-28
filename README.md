@@ -2,7 +2,7 @@
 
 Remplace la page « CRENEAUX LIV » du Power BI et le fichier `CRENEAUX LIV 49.xlsx` : la liste des villes livrées par l'agence 49, leur tournée et leurs horaires de livraison, avec une carte.
 
-- **Villes et carte** : recherche par ville ou code postal, filtres par tournée, regroupement de communes et heure (« Livrable à 14h00 »). Un clic sur une ville zoome la carte dessus. Fonds de carte : plan OpenStreetMap, plan IGN ou photos aériennes IGN.
+- **Villes et carte** : recherche par ville ou code postal, filtres par tournée, regroupement de communes et heure (« Livrable à 14h00 »). Un clic sur une ville zoome la carte dessus. Fonds de carte : plan IGN (par défaut), OpenStreetMap ou photos aériennes IGN.
 - **Par tournée** : les villes de chaque tournée, rangées par heure d'ouverture.
 - **Modifier** (droit Modification) : ville, code postal, regroupement, tournée (et tournée de secours), une ou deux plages horaires ou « Tél. conducteur », remarque, position du point sur la carte. Chaque changement est signé dans l'historique.
 - **Données** (administrateurs) : reprise du fichier Excel, export Excel aux colonnes de l'ancien fichier, villes sans position, historique.

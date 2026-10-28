@@ -394,16 +394,17 @@ $$("th[data-k] button").forEach(b=>b.onclick=()=>{const k=b.parentElement.datase
 function resetAll(){$("#q").value="";$("#ft").value="";$("#fg").value="";$("#fh").value="";unselect();renderList();fit(true)}
 $("#reset").onclick=resetAll;
 
-/* Carte : fond OpenStreetMap, ou plan et photos aériennes de l'IGN. */
+/* Carte : plan de l'IGN par défaut, ou OpenStreetMap, ou photos aériennes de l'IGN. */
 const map=L.map("map",{zoomControl:true,attributionControl:true}).setView([47.47,-0.55],9);
 const ign=(layer,fmt)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&FORMAT=${fmt}&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
 const FONDS={
-  "Plan":L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}),
-  "Plan IGN":L.tileLayer(ign("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2","image/png"),{maxZoom:19,attribution:"© IGN"}),
+  "Plan IGN":L.tileLayer(ign("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2","image/png"),{maxZoom:19,maxNativeZoom:18,attribution:"© IGN"}),
+  // OpenStreetMap refuse les tuiles demandées sans l'adresse du site : on la lui envoie (le reste de l'appli n'envoie rien).
+  "OpenStreetMap":L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap",referrerPolicy:"strict-origin-when-cross-origin"}),
   "Satellite":L.tileLayer(ign("ORTHOIMAGERY.ORTHOPHOTOS","image/jpeg"),{maxZoom:19,attribution:"© IGN"})
 };
-let fond="Plan";try{fond=localStorage.getItem("creneaux-fond")||"Plan"}catch(_){}
-(FONDS[fond]||FONDS.Plan).addTo(map);
+let fond="Plan IGN";try{fond=localStorage.getItem("creneaux-fond")||fond}catch(_){}
+(FONDS[fond]||FONDS["Plan IGN"]).addTo(map);
 L.control.layers(FONDS,null,{position:"topright"}).addTo(map);
 map.on("baselayerchange",e=>{try{localStorage.setItem("creneaux-fond",e.name)}catch(_){}});
 const layer=L.layerGroup().addTo(map);
