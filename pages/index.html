@@ -300,6 +300,7 @@ td.c-ed{width:1%;text-align:right;padding-left:0}
       <div class="card dcard" id="nopos-card">
         <h2>Villes sans position</h2>
         <p>Leur adresse n'a pas été trouvée. Elles restent dans la liste mais pas sur la carte : ouvrez-les et cliquez sur « Placer sur la carte ».</p>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" type="button" id="np-go">Chercher à nouveau leur position</button><span class="muted" id="np-t"></span></div>
         <div class="lst" id="nopos"></div>
       </div>
       <div class="card dcard">
@@ -486,24 +487,39 @@ function gererErreur(e,v){
   toast(e.message);
 }
 
-/* Recherche de la position d'une ville (service d'adresses de l'IGN, puis l'ancien service de l'État en secours). */
+/* Recherche de la position d'une ville (service d'adresses de l'IGN, puis l'ancien service de l'État en secours).
+   Une ancienne commune fusionnée (commune déléguée, ex. Chalonnes-sous-le-Lude dans Noyant-Villages) n'est plus une
+   commune pour ces services : on la cherche alors parmi les adresses et lieux-dits qui portent encore son nom. */
 function requete(v){
   const parts=v.ville.split("/").map(s=>s.trim()).filter(Boolean);
   let nom=parts[0];const m=nom.match(/^(.*) (LA|LE|LES|L)$/);if(m)nom=`${m[2]} ${m[1]}`;
   return parts.length>1?{q:parts.slice(1).join(" ")+" "+nom,type:""}:{q:nom,type:"municipality"};
 }
+const GEO=["https://data.geopf.fr/geocodage/search","https://api-adresse.data.gouv.fr/search/"];
+async function chercher(base,params){
+  try{const res=await fetch(base+"?"+new URLSearchParams(params),{signal:AbortSignal.timeout(8000)});
+    return res.ok?(await res.json()).features||[]:[]}
+  catch(_){return []}
+}
+const point=f=>{const[lng,lat]=f.geometry.coordinates;return{lat:+lat.toFixed(5),lng:+lng.toFixed(5)}};
 async function geocode(v){
   const r=requete(v);
-  const qs=(pc)=>`?q=${encodeURIComponent(r.q)}&limit=1${pc?`&postcode=${v.cp}`:""}${r.type?`&type=${r.type}`:""}`;
-  for(const base of ["https://data.geopf.fr/geocodage/search","https://api-adresse.data.gouv.fr/search/"])
+  for(const base of GEO)
     for(const pc of [true,false]){
-      try{const res=await fetch(base+qs(pc),{signal:AbortSignal.timeout(8000)});if(!res.ok)continue;
-        const f=(await res.json()).features?.[0];if(!f)continue;
-        // Sans le code postal, on n'accepte qu'une réponse dans le même département.
-        if(!pc&&String(f.properties.postcode||"").slice(0,2)!==v.cp.slice(0,2))continue;
-        const[lng,lat]=f.geometry.coordinates;return{lat:+lat.toFixed(5),lng:+lng.toFixed(5)}}
-      catch(_){}
+      const f=(await chercher(base,{q:r.q,limit:1,...(pc?{postcode:v.cp}:{}),...(r.type?{type:r.type}:{})}))[0];
+      // Sans le code postal, on n'accepte qu'une commune du même nom dans le même département.
+      if(f&&(pc||String(f.properties.postcode||"").slice(0,2)===v.cp.slice(0,2)&&(!r.type||norm(f.properties.city||"")===norm(r.q))))return point(f);
     }
+  if(!r.type)return null;
+  const nom=norm(r.q);
+  for(const base of GEO){
+    const fs=await chercher(base,{q:r.q,limit:10,postcode:v.cp});
+    // Un lieu-dit qui porte le nom, sinon une adresse de l'ancienne commune (le centre de ces adresses).
+    const lieu=fs.find(f=>f.properties.type==="locality"&&norm(f.properties.name||"")===nom);
+    if(lieu)return point(lieu);
+    const adr=fs.filter(f=>norm(f.properties.oldcity||"")===nom);
+    if(adr.length)return point({geometry:{coordinates:[0,1].map(k=>adr.reduce((t,f)=>t+f.geometry.coordinates[k],0)/adr.length)}});
+  }
   return null;
 }
 
@@ -679,6 +695,15 @@ async function renderDonnees(){
   $("#nopos").innerHTML=np.map(v=>`<div><button class="more" type="button" data-np="${v.id}">${esc(v.ville)}</button><small>${esc(v.cp)} · tournée ${esc(tTxt(v))}</small></div>`).join("");
   $$("[data-np]").forEach(b=>b.onclick=()=>{go("liste");const v=VILLES.find(x=>x.id==b.dataset.np);select(v.id,"list");startPlace(v)});
 }
+$("#np-go").onclick=async()=>{
+  const np=VILLES.filter(v=>v.lat==null),b=$("#np-go"),t=$("#np-t");b.disabled=true;let n=0,ok=0;
+  for(const v of np){
+    t.textContent=`Recherche : ${++n} / ${np.length}`;
+    const g=await geocode(v);if(!g)continue;
+    try{majVille(await api("villes/"+v.id,{method:"PUT",body:JSON.stringify({...v,...g})}));ok++}catch(e){gererErreur(e,v)}
+  }
+  b.disabled=false;t.textContent=ok?`${ok} ville(s) placée(s) sur ${np.length}.`:`Aucune trouvée : placez-les à la main.`;toast(t.textContent);
+};
 async function renderHist(){
   try{const h=await api("historique");$("#hist").innerHTML=h.length?h.map(x=>`<div>${esc(x.texte)}<small>${esc(x.qui)} · ${new Date(x.t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}</small></div>`).join(""):`<div class="muted">Rien pour l'instant.</div>`}
   catch(e){$("#hist").innerHTML=`<div class="err">${esc(e.message)}</div>`}
