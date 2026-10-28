@@ -281,7 +281,7 @@ td.c-ed{width:1%;text-align:right;padding-left:0}
         <div class="empty" id="empty" hidden></div>
       </div></div>
       <div class="card mapcard" id="mapcard">
-        <div class="maphead"><h2>Localisation</h2><button class="btn sm" type="button" id="zfit" title="Voir toutes les villes affichées">Recadrer</button></div>
+        <div class="maphead"><h2>Localisation</h2><button class="btn sm" type="button" id="zfit" title="Voir toutes les villes de la liste">Toutes les villes</button></div>
         <div class="mapwrap"><div id="map" aria-label="Carte des villes livrées"></div><div class="legend" aria-label="Couleurs de la carte">
       <span><i class="dot" style="background:var(--p1)"></i>Début avant 10h</span>
       <span><i class="dot" style="background:var(--p2)"></i>Début 10h à 12h</span>
@@ -404,11 +404,11 @@ function renderList(){
   const r2=$("#reset2");if(r2)r2.onclick=resetAll;
   $$("th[data-k]").forEach(th=>{const on=th.dataset.k===sortK;if(on)th.setAttribute("aria-sort",sortDir>0?"ascending":"descending");else th.removeAttribute("aria-sort");th.querySelector(".arr").textContent=on&&sortDir<0?"▼":"▲"});
   $$("#rows .ed").forEach(b=>b.onclick=e=>{e.stopPropagation();const v=VILLES.find(x=>x.id==b.dataset.ed);select(v.id,"list");editDlg(v)});
-  $$("#rows tr").forEach(tr=>{tr.onclick=()=>select(+tr.dataset.id,"list");tr.onkeydown=e=>{if(e.key==="Enter")select(+tr.dataset.id,"list")}});
+  $$("#rows tr").forEach(tr=>{tr.onclick=()=>+tr.dataset.id===sel?toutes():select(+tr.dataset.id,"list");tr.onkeydown=e=>{if(e.key==="Enter")select(+tr.dataset.id,"list")}});
   renderMarkers();
 }
 $$("th[data-k] button").forEach(b=>b.onclick=()=>{const k=b.parentElement.dataset.k;if(sortK===k)sortDir=-sortDir;else{sortK=k;sortDir=1}renderList()});
-["#q","#ft","#fg","#fh"].forEach(s=>$(s).addEventListener("input",()=>{renderList();fit()}));
+["#q","#ft","#fg","#fh"].forEach(s=>$(s).addEventListener("input",()=>{if(sel!=null)unselect();renderList();fit()}));
 function resetAll(){$("#q").value="";$("#ft").value="";$("#fg").value="";$("#fh").value="";unselect();renderList();fit(true)}
 $("#reset").onclick=resetAll;
 
@@ -440,7 +440,10 @@ function renderMarkers(){
     const on=ids.has(v.id),s=v.id===sel;
     let mk=markers.get(v.id);
     if(!mk){mk=L.marker([v.lat,v.lng],{keyboard:false});mk.on("click",()=>select(mk.vid,"map"));
-      mk.on("dragend",()=>savePos(VILLES.find(x=>x.id===mk.vid),mk.getLatLng()));markers.set(v.id,mk);mk.addTo(layer)}
+      mk.on("dragend",()=>savePos(VILLES.find(x=>x.id===mk.vid),mk.getLatLng()));markers.set(v.id,mk)}
+    // Une ville choisie reste seule sur la carte.
+    if(sel!=null&&!s){layer.removeLayer(mk);continue}
+    if(!layer.hasLayer(mk))mk.addTo(layer);
     mk.vid=v.id;mk.setLatLng([v.lat,v.lng]);mk.setIcon(icon(v,on,s));mk.setZIndexOffset(s?1000:on?100:0);
     mk.bindTooltip(`<b>${esc(v.ville)}</b><br><span class="mono">${esc(v.cp)} · T${esc(tTxt(v))} · ${esc(fmtCr(v))}</span>`,{direction:"top",offset:[0,-10]});
   }
@@ -451,7 +454,9 @@ function fit(all){
   if(l.length===1)return map.setView([l[0].lat,l[0].lng],13);
   map.fitBounds(L.latLngBounds(l.map(v=>[v.lat,v.lng])),{padding:[30,30],maxZoom:13});
 }
-$("#zfit").onclick=()=>fit();
+// Quitter la ville choisie et revoir toutes les villes de la liste.
+function toutes(){unselect();fit()}
+$("#zfit").onclick=toutes;
 
 /* Sélection : zoom sur la ville, bulle avec ses infos, fiche sous la carte. */
 function popHtml(v){return `<div class="pop"><b>${esc(v.ville)}</b><span class="mono">${esc(v.cp)} · Tournée ${esc(tTxt(v))}</span><span class="mono">${esc(fmtCr(v))}</span>
@@ -475,7 +480,7 @@ map.on("popupopen",e=>{const el=e.popup.getElement(),v=VILLES.find(x=>x.id===sel
 function renderFiche(v){
   const f=$("#fiche");f.hidden=false;
   f.innerHTML=`<div class="ttl"><div><h3>${esc(v.ville)}</h3><span class="muted">${v.regroupement?esc(v.regroupement)+" · ":""}<span class="mono">${esc(v.cp)}</span> · plateforme ${esc(v.plateforme)}</span></div>
-    ${canEdit()?`<div style="display:flex;gap:6px;flex-wrap:wrap">${v.lat==null?`<button class="btn" type="button" id="fplace">Placer sur la carte</button>`:""}<button class="btn" type="button" id="fedit"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Modifier</button></div>`:""}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${canEdit()?`${v.lat==null?`<button class="btn" type="button" id="fplace">Placer sur la carte</button>`:""}<button class="btn" type="button" id="fedit"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Modifier</button>`:""}</div></div>
     <dl><div><dt>Tournée</dt><dd><span class="tn">${v.tournee}</span>${v.tournee2?` <span class="tn alt">ou ${v.tournee2}</span>`:""}</dd></div>
     <div><dt>Créneau</dt><dd class="mono">${esc(fmtCr(v))}</dd></div>
     ${v.remarque?`<div><dt>Remarque</dt><dd>${esc(v.remarque)}</dd></div>`:""}</dl>
