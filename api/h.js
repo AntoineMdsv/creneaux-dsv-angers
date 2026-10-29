@@ -236,7 +236,7 @@ export default async function handler(req, res) {
       const pid = "~" + Buffer.from(JSON.stringify({ ...moi, vt: Date.now() })).toString("base64url");
       verifs.set(o.sid, { t: Date.now(), r: moi });
       // Page relais plutôt qu'une redirection : le cookie SameSite=Strict n'est envoyé qu'une fois sur le site lui-même.
-      return send(res, 200, "text/html; charset=utf-8", `<!doctype html><meta charset="utf-8"><title>Créneaux DSV Angers</title><script>location.replace("/")</script><a href="/">Ouvrir les créneaux</a>`, makeCookie(pid));
+      return send(res, 200, "text/html; charset=utf-8", `<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html{color-scheme:light}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f5f8;font:600 15px Barlow,system-ui,-apple-system,"Segoe UI",sans-serif;color:#0f2a5c}div{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:16px 22px;box-shadow:0 10px 30px rgb(15 42 92 / .14)}i{width:22px;height:22px;border-radius:50%;border:3px solid #d5dbe5;border-top-color:#2F80D8;animation:t .8s linear infinite}@keyframes t{to{transform:rotate(360deg)}}a{color:inherit;text-decoration:none}</style><title>Créneaux DSV Angers</title><div role="status"><i></i><a href="/">Ouverture des créneaux…</a></div><script>location.replace("/")</script>`, makeCookie(pid));
     }
     if (p === "/logout") return json(res, 200, { ok: true }, COOKIE_VIDE);
 
