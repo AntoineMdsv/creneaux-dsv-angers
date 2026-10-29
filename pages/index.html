@@ -330,6 +330,17 @@ td.c-ed{width:1%;text-align:right;padding-left:0}
 <footer class="credit">Antoine Macé · DSV Angers</footer>
 <div id="dlg"></div>
 
+<!-- Écran d'attente : affiché dès le clic qui ouvre une autre page (tuile, Menu, Déconnexion), pour montrer que le clic est pris en compte. -->
+<div id="attente" hidden role="status" aria-live="polite"><div class="att-box"><span class="att-rond" aria-hidden="true"></span><span id="attente-txt">Chargement…</span></div></div>
+<style>#attente{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:rgb(243 245 248 / .78);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);animation:att-in .12s ease-out}
+#attente[hidden]{display:none}
+.att-box{display:flex;align-items:center;gap:12px;max-width:calc(100vw - 32px);background:#fff;border:1px solid #d5dbe5;border-radius:10px;padding:16px 22px;box-shadow:0 10px 30px rgb(15 42 92 / .14);font:600 15px "Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;color:#0f2a5c}
+.att-rond{flex:none;width:22px;height:22px;border-radius:50%;border:3px solid #d5dbe5;border-top-color:#2F80D8;animation:att-tour .8s linear infinite}
+@keyframes att-tour{to{transform:rotate(360deg)}}@keyframes att-in{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){.att-rond{animation-duration:2.4s}#attente{animation:none}}</style>
+<script>let attenteT;function attente(t){const a=document.getElementById("attente");document.getElementById("attente-txt").textContent=t||"Chargement…";a.hidden=false;clearTimeout(attenteT);attenteT=setTimeout(()=>{a.hidden=true},30000)}
+function finAttente(){clearTimeout(attenteT);document.getElementById("attente").hidden=true}
+addEventListener("pageshow",e=>{if(e.persisted)finAttente()});</script>
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -737,8 +748,8 @@ async function renderHist(){
 function go(v){view=v;document.body.classList.toggle("fit",v==="liste");$$(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.v===v));$$(".view").forEach(s=>s.hidden=s.id!=="v-"+v);
   if(v==="liste")setTimeout(()=>map.invalidateSize(),0);if(v==="donnees"){renderDonnees();renderHist()}window.scrollTo(0,0)}
 $$(".tab").forEach(t=>t.onclick=()=>go(t.dataset.v));
-$("#menu").onclick=()=>{location.href=ME.portail+"/"};
-$("#logout").onclick=async()=>{await fetch("/api/logout");location.replace(ME&&ME.viaPortail?ME.portail+"/api/logout":"/connexion")};
+$("#menu").onclick=()=>{attente("Retour au portail…");location.href=ME.portail+"/"};
+$("#logout").onclick=async()=>{attente("Déconnexion…");await fetch("/api/logout");location.replace(ME&&ME.viaPortail?ME.portail+"/api/logout":"/connexion")};
 const setTop=()=>document.documentElement.style.setProperty("--toph",$("#top").offsetHeight+"px");
 addEventListener("resize",setTop);
 
