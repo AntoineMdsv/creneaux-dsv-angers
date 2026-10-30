@@ -1,6 +1,6 @@
 // Serveur de l'appli Créneaux de livraison (fonction Vercel) : villes livrées par l'agence 49, leur tournée
-// et leurs horaires de livraison, dans une base Postgres (Neon). On y entre par le portail DSV Angers
-// (droits Consultation ou Modification), ou avec le code de secours CODE_ADMIN.
+// et leurs horaires de livraison, dans une base Postgres (Neon). On y entre uniquement par le portail DSV Angers
+// (droits Consultation ou Modification).
 // Aucun code ni aucune clé dans ce dépôt : tout est réglé dans Vercel.
 import pg from "pg";
 import crypto from "node:crypto";
@@ -9,14 +9,12 @@ import path from "node:path";
 
 const ROOT = process.cwd();
 const read = f => fs.readFileSync(path.join(ROOT, f));
-// Code de secours réglé dans Vercel : il ouvre l'appli en administrateur (premier lancement, ou portail en panne).
+// L'ancien code de secours n'ouvre plus l'appli : il reste seulement dans la clé des sessions, pour ne déconnecter personne.
 const CODE_ADMIN = process.env.CODE_ADMIN || "";
-const NOM_ADMIN = (process.env.NOM_ADMIN || "Administrateur").trim().slice(0, 40);
-const MIN_CODE = 10;
 const DB_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || "";
 const SECRET = crypto.createHash("sha256").update([process.env.SESSION_SECRET || "", DB_URL, CODE_ADMIN].join("|")).digest("hex");
 const SESSION_S = 12 * 3600;
-// Portail commun : adresse du portail et clé partagée, même valeur de CLE_PORTAIL dans tous les projets Vercel.
+// Portail commun : seule façon d'entrer dans l'appli. Adresse du portail et clé partagée, même valeur de CLE_PORTAIL dans tous les projets Vercel.
 const PORTAIL_URL = String(process.env.PORTAIL_URL || "").trim().replace(/\/+$/, "");
 const CLE_PORTAIL = process.env.CLE_PORTAIL || "";
 const PORTAIL_ON = !!PORTAIL_URL && CLE_PORTAIL.length >= 32;
@@ -40,20 +38,13 @@ async function init() {
     remarque text NOT NULL DEFAULT '', lat double precision, lng double precision, version int NOT NULL DEFAULT 1,
     maj timestamptz NOT NULL DEFAULT now(), maj_par text NOT NULL DEFAULT '')`,
     `CREATE TABLE IF NOT EXISTS historique (id bigserial PRIMARY KEY, t timestamptz NOT NULL DEFAULT now(), qui text NOT NULL, texte text NOT NULL)`,
-    `CREATE TABLE IF NOT EXISTS echecs (ip text NOT NULL, t timestamptz NOT NULL DEFAULT now())`,
     `CREATE TABLE IF NOT EXISTS jetons (jti text PRIMARY KEY, t timestamptz NOT NULL DEFAULT now())`
   ].join(";\n"));
 }
 
-function sameCode(a, b) {
-  const x = crypto.createHash("sha256").update(String(a)).digest(), y = crypto.createHash("sha256").update(String(b)).digest();
-  return crypto.timingSafeEqual(x, y);
-}
-const normCode = c => String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-
 // Session : cookie signé "personne.expiration.signature".
-// "admin" = code de secours ; "~..." = entrée par le portail (personne, droits et session du portail, en JSON),
-// revérifiée auprès du portail toutes les 5 minutes.
+// "~..." = entrée par le portail (personne, droits et session du portail, en JSON), revérifiée auprès du portail toutes les 5 minutes.
+// Les anciennes sessions ouvertes avec le code de secours ne sont plus acceptées.
 const sign = s => crypto.createHmac("sha256", SECRET).update(s).digest("base64url");
 function makeCookie(pid) {
   const v = `${pid}.${Math.floor(Date.now() / 1000) + SESSION_S}`;
@@ -68,7 +59,6 @@ async function session(req) {
   const good = sign(`${pid}.${exp}`);
   if (sig.length !== good.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good))) return null;
   if (Number(exp) < Date.now() / 1000) return null;
-  if (pid === "admin") return CODE_ADMIN.length >= MIN_CODE ? { id: "admin", nom: NOM_ADMIN, admin: true, niveau: "modif" } : null;
   if (pid[0] !== "~" || !PORTAIL_ON) return null;
   let o;
   try { o = JSON.parse(Buffer.from(pid.slice(1), "base64url").toString("utf8")); } catch (_) { return null; }
@@ -109,14 +99,6 @@ async function verifPortail(sid) {
     }
   } catch (_) {}
   return c ? c.r : undefined;
-}
-
-// Codes faux : 10 par adresse IP et 100 au total en 10 minutes, ensuite la connexion est suspendue.
-const ipOf = req => String(req.headers["x-real-ip"] || req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "?";
-async function blocked(ip) {
-  await q(`DELETE FROM echecs WHERE t < now() - interval '10 minutes'`);
-  const r = await q(`SELECT count(*) FILTER (WHERE ip = $1)::int AS ip, count(*)::int AS tout FROM echecs`, [ip]);
-  return r.rows[0].ip >= 10 || r.rows[0].tout >= 100;
 }
 
 const clean = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
@@ -189,7 +171,11 @@ async function body(req, limit = 64 * 1024) {
 }
 const jsonBody = async (req, limit) => { try { return JSON.parse((await body(req, limit)).toString("utf8")); } catch (_) { return undefined; } };
 const log = (qui, texte) => q(`INSERT INTO historique (qui, texte) VALUES ($1, $2)`, [qui, texte.slice(0, 600)]);
-const pageConnexion = () => read("pages/connexion.html").toString().replace("__PORTAIL__", PORTAIL_ON ? encodeURI(PORTAIL_URL) : "");
+// Plus de page de connexion propre à l'appli : sans session, on est renvoyé vers le portail.
+function versPortail(res) {
+  if (!PORTAIL_ON) return text(res, 503, "Entrée uniquement par le portail : réglez PORTAIL_URL et CLE_PORTAIL (32 caractères minimum) dans Vercel, puis Redeploy.");
+  res.statusCode = 302; res.setHeader("Cache-Control", "no-store"); res.setHeader("Location", PORTAIL_URL + "/"); return res.end();
+}
 
 export default async function handler(req, res) {
   const url = new URL(req.url, "http://x");
@@ -214,22 +200,13 @@ export default async function handler(req, res) {
       const o = req.headers.origin;
       if (o && o !== `https://${req.headers.host}` && o !== `http://${req.headers.host}`) return text(res, 403, "Origine refusée");
     }
-    // Connexion directe : seulement avec le code de secours. Les autres passent par le portail.
-    if (p === "/login" && method === "POST") {
-      const ip = ipOf(req);
-      if (await blocked(ip)) return json(res, 429, { ok: false, wait: true });
-      const code = String((await jsonBody(req, 2000) || {}).code || "");
-      if (code && CODE_ADMIN.length >= MIN_CODE && sameCode(normCode(code), normCode(CODE_ADMIN))) return json(res, 200, { ok: true }, makeCookie("admin"));
-      if (CODE_ADMIN.length < MIN_CODE && !PORTAIL_ON) return text(res, 503, "Code de secours non réglé dans Vercel : ajoutez CODE_ADMIN (10 caractères minimum), puis Redeploy.");
-      await q(`INSERT INTO echecs (ip) VALUES ($1)`, [ip]); await new Promise(r => setTimeout(r, 1000));
-      return json(res, 401, { ok: false });
-    }
-    if (p === "/connexion") return send(res, 200, "text/html; charset=utf-8", pageConnexion());
+    // Ancienne adresse de la page de connexion (favoris) : renvoie vers le portail.
+    if (p === "/connexion") return versPortail(res);
     // Arrivée depuis le portail : le jeton ouvre une session de 12 h au nom de la personne.
     if (p === "/portail" && method === "GET") {
       const o = lireJeton(url.searchParams.get("jeton"));
       if (!o || !(await q(`WITH d AS (DELETE FROM jetons WHERE t < now() - interval '10 minutes') INSERT INTO jetons (jti) VALUES ($1) ON CONFLICT DO NOTHING`, [o.jti])).rowCount) {
-        res.statusCode = 302; res.setHeader("Location", PORTAIL_ON ? PORTAIL_URL + "/" : "/connexion"); return res.end();
+        return versPortail(res);
       }
       // vt : heure de la dernière vérification (le jeton vient d'être vérifié), pour ne pas redemander au portail avant 5 minutes.
       const moi = { id: String(o.id).slice(0, 40), nom: clean(o.nom, 40), admin: !!o.admin, creneaux: o.creneaux, sid: o.sid };
@@ -242,7 +219,7 @@ export default async function handler(req, res) {
 
     const ses = await session(req);
     if (!ses) {
-      if (p === "/page") return send(res, 200, "text/html; charset=utf-8", pageConnexion());
+      if (p === "/page") return versPortail(res);
       return text(res, 401, "Connexion requise");
     }
     if (p === "/page") return send(res, 200, "text/html; charset=utf-8", read("pages/index.html"));
