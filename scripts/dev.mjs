@@ -1,4 +1,4 @@
-// Lancement en local pour essayer l'appli : node scripts/dev.mjs (avec DATABASE_URL et CODE_ADMIN dans l'environnement).
+// Lancement en local pour essayer l'appli : node scripts/dev.mjs (avec DATABASE_URL, PORTAIL_URL et CLE_PORTAIL dans l'environnement, portail lancé à part).
 // Reprend les réécritures de vercel.json : /api/... vers la fonction, le reste depuis public/.
 import http from "node:http";
 import fs from "node:fs";

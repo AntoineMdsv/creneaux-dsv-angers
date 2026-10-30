@@ -7,7 +7,7 @@ Remplace la page « CRENEAUX LIV » du Power BI et le fichier `CRENEAUX LIV 49.x
 - **Modifier** (droit Modification) : ville, code postal, regroupement, tournée (et tournée de secours), une ou deux plages horaires ou « Tél. conducteur », remarque, position du point sur la carte. Chaque changement est signé dans l'historique.
 - **Données** (administrateurs) : reprise du fichier Excel, export Excel aux colonnes de l'ancien fichier, villes sans position, historique.
 
-On entre par le **portail DSV Angers** (tuile Créneaux). Les droits se donnent dans la page Accès du portail : Pas d'accès, Consultation ou Modification ; les administrateurs du portail voient l'onglet Données. Le code de secours `CODE_ADMIN` permet aussi d'entrer directement, en administrateur.
+On entre par le **portail DSV Angers** (tuile Créneaux). Les droits se donnent dans la page Accès du portail : Pas d'accès, Consultation ou Modification ; les administrateurs du portail voient l'onglet Données. L'appli n'a pas de page de connexion : une adresse ouverte sans passer par le portail y renvoie.
 
 **Aucun code, aucune clé, aucune adresse de base ne doit être écrit dans ce dépôt.** Tout se règle dans Vercel.
 
@@ -25,8 +25,7 @@ On entre par le **portail DSV Angers** (tuile Créneaux). Les droits se donnent 
 - `DATABASE_URL` : ajoutée automatiquement quand on relie une base Neon.
 - `PORTAIL_URL` : adresse du portail, par exemple `https://portail-dsv-angers.vercel.app`.
 - `CLE_PORTAIL` : la même valeur que dans le portail et les autres applis.
-- `CODE_ADMIN` : code de secours, 10 caractères minimum.
-- `NOM_ADMIN` (facultatif) : nom affiché pour le code de secours, par exemple `Antoine`.
+- `CODE_ADMIN` (ancien code de secours) : n'ouvre plus l'appli. S'il est déjà réglé, le laisser tel quel (il sert de clé aux sessions : le changer déconnecte tout le monde). `NOM_ADMIN` ne sert plus.
 
 `/api/health` indique si la base est reliée et si le portail est réglé.
 
@@ -36,4 +35,4 @@ On entre par le **portail DSV Angers** (tuile Créneaux). Les droits se donnent 
 
 ## Essayer en local
 
-Avec une base Postgres locale : `DATABASE_URL=postgres://… CODE_ADMIN=un-code-de-test npm run dev`, puis ouvrir http://localhost:3000.
+Avec une base Postgres locale et le portail lancé en local : `DATABASE_URL=postgres://… PORTAIL_URL=http://localhost:3001 CLE_PORTAIL=…(même clé que le portail) npm run dev`, puis ouvrir l'appli depuis le portail.
